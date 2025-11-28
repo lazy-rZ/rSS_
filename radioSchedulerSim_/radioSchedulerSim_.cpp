@@ -2,6 +2,7 @@
 #include <cstdlib> 
 #include <ctime>
 #include <vector>
+#include <algorithm>
 
 struct User {
     int id;
@@ -65,6 +66,48 @@ void scheduleMaxCQI(const std::vector<User>& users, std::vector<int>& rbOwner) {
     };
 }
 
+void schedulePF(const std::vector<User>& users, std::vector<int>& rbOwner,
+    const std::vector<double>& bitsPerRbPerUser,
+    const std::vector<double>& avgThroughput) {
+
+    int numUsers = static_cast<int>(users.size());
+
+    std::vector<double> tempAvg = avgThroughput;
+    double pfAlpha = 0.01;
+
+    for (int rb = 0; rb < (int)rbOwner.size(); rb++) {
+
+        double bestMetric = -1.0;
+        int bestUser = -1;
+
+        for (int i = 0; i < numUsers; i++) {
+
+            // Skip empty buffers
+            if (users[i].buffer <= 0) continue;
+
+            double instRate = bitsPerRbPerUser[i];
+            double metric = instRate / tempAvg[i];
+
+            if (metric > bestMetric) {
+                bestMetric = metric;
+                bestUser = i;
+            }
+        }
+
+        if (bestUser == -1) {
+            rbOwner[rb] = 0;  // nobody has buffer
+            continue;
+        }
+
+        rbOwner[rb] = bestUser;
+
+        // Update tempAvg to reduce metric for users already served
+        double instRateBest = bitsPerRbPerUser[bestUser];
+        tempAvg[bestUser] = (1.0 - pfAlpha) * tempAvg[bestUser]
+            + pfAlpha * instRateBest;
+    }
+}
+
 int main()
 {
     std::cout << "rSS_ | Build 0.5\n";
@@ -92,12 +135,17 @@ int main()
     // rbOwenr[rb] = index of UE in 'users'
     std::vector<int> rbOwner(TOTAL_RB);
 
+    // Average throughput for Proportional Fair Scheduler
+    std::vector<double> avgThroughput(users.size(), 1.0);
+
     // Set seed to current time for rand
     std::srand(static_cast<unsigned>(std::time(nullptr)));
-    
+
+    // For verifying PF is balancing
+    std::vector<double> totalThr(users.size(), 0.0);
 
     // main loop
-    for (int tti = 0; tti < 10; ++tti) {
+    for (int tti = 0; tti < 100; ++tti) {
         
         std::cout << "TTI: " << tti << "\n";
 
@@ -106,13 +154,15 @@ int main()
         };
 
         // call scheduler
-        //scheduleRoundRobin(users, rbOwner);
-        scheduleMaxCQI(users, rbOwner);
+        //scheduleRoundRobin(users, rbOwner); // strict time based fairness and simpicity
+        //scheduleMaxCQI(users, rbOwner); // maximize instantaneous totalt throughput
 
         // Precompute bitsPerRb for each UE in this TTI
         for (std::size_t i = 0; i < users.size(); ++i) {
             bitsPerRbPerUser[i] = getBitsPerRbFromCQI(users[i].cqi, mcsTable);
         };
+
+        schedulePF(users, rbOwner, bitsPerRbPerUser, avgThroughput); // balance throughput and fairness
 
         // reset per UE throughput 
         std::vector<double> thrPerUser(users.size(), 0.0);
@@ -122,6 +172,18 @@ int main()
             int uIndex = rbOwner[rb];
             thrPerUser[uIndex] += bitsPerRbPerUser[uIndex];
         };
+
+        // For debuggin
+        for (std::size_t i = 0; i < users.size(); ++i) {
+            totalThr[i] += thrPerUser[i];
+        }
+
+        // for PF scheduling keep exponential average for throughput
+        double alpha = 0.1;
+        for (std::size_t i = 0; i < users.size(); ++i) {
+            avgThroughput[i] = (1 - alpha) * avgThroughput[i] + alpha * thrPerUser[i];
+            avgThroughput[i] = std::max(avgThroughput[i], 1.0);
+        }
 
         // Update buffers
         for (std::size_t i = 0; i < users.size(); ++i) {
@@ -138,7 +200,19 @@ int main()
                 << "  THR=" << thrPerUser[i]
                 << "  BUF=" << u.buffer << "\n";
         }
+
+        // Add new traffic arrivals
+        for (auto& u : users) {
+            u.buffer += static_cast<int>(5000.0 * std::rand() / RAND_MAX);
+        }
         
+    }
+
+    // The totals per UE should be in the same ballpark
+    std::cout << "\nTotal throughput over all TTIs:\n";
+    for (std::size_t i = 0; i < users.size(); ++i) {
+        std::cout << "  UE" << users[i].id
+            << " totalThr = " << totalThr[i] << " bits\n";
     }
 
     return 0;
