@@ -46,9 +46,28 @@ void scheduleRoundRobin(const std::vector<User>& users, std::vector<int>& rbOwne
 
 }
 
+void scheduleMaxCQI(const std::vector<User>& users, std::vector<int>& rbOwner) {
+    int numUsers = static_cast<int>(users.size());
+
+    for (int rb = 0; rb < static_cast<int>(rbOwner.size()); ++rb) {
+
+        double bestCQI = -1.0;
+        int bestUser = 0;
+
+        for (int i = 0; i < numUsers; ++i) {
+            if (users[i].cqi > bestCQI) {
+                bestCQI = users[i].cqi;
+                bestUser = i;
+            }
+        };
+
+        rbOwner[rb] = bestUser;
+    };
+}
+
 int main()
 {
-    std::cout << "rSS_ | Build 0.1\n";
+    std::cout << "rSS_ | Build 0.5\n";
     
     // Initilize users
     std::vector<User> users;
@@ -87,7 +106,8 @@ int main()
         };
 
         // call scheduler
-        scheduleRoundRobin(users, rbOwner);
+        //scheduleRoundRobin(users, rbOwner);
+        scheduleMaxCQI(users, rbOwner);
 
         // Precompute bitsPerRb for each UE in this TTI
         for (std::size_t i = 0; i < users.size(); ++i) {
