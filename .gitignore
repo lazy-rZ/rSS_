@@ -1,0 +1,101 @@
+# Visual Studio
+.vs/
+.vscode/
+*.vcxproj.user
+*.vcxproj.filters
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Build results
+[Bb]in/
+[Oo]bj/
+Debug*/
+Release*/
+build/
+out/
+x64/
+x86/
+arm/
+ARM/
+*_Debug*/
+*_Release*/
+
+# Visual C++ intermediate files
+*.idb
+*.pdb
+*.ilk
+*.ipch
+*.tlog/
+
+# Visual Studio Code workspace
+.vscode/
+
+# Rider/JetBrains
+.idea/
+
+# Generated files
+generated/
+*.vsix
+*.nupkg
+
+# NuGet
+packages/
+*.nupkg
+project.lock.json
+project.fragment.lock.json
+project.assets.json
+
+# Resharper
+_ReSharper*/
+*.[Rr]e[Ss]harper
+_ReSharper.Caches/
+
+# Test results
+TestResults/
+*.trx
+*.coverage
+*.coveragexml
+
+# SQLite / database files
+*.db
+*.sqlite
+*.sdf
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# CMake
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+build-*/
+
+# Qt / qmake
+*.pro.user
+*.qmake.stash
+
+# Temporary editor files
+*~
+*.swp
+*.swo
+
+# JetBrains Rider/CLion caches
+.idea/
+*.iml
+
+# Rider dotCover
+.idea/.idea.DOTCOVER
+
+# Visual Studio Code settings
+.vscode/
+
+# Ignore Visual Studio folder that caused your error
+.vs/
