@@ -3,6 +3,7 @@
 #include <ctime>
 #include <vector>
 #include <algorithm>
+#include <cmath>
 
 struct User {
     int id;
@@ -10,6 +11,14 @@ struct User {
     int buffer;
     double bitsPerRb;
     double thr;
+    // added new HARQ state (one process per UE for now)
+    bool harqActive = false;
+    int harqBits = 0; // size of TB currently in HARQ
+    int harqTxCount = 0; // how many times this TB was sent
+
+    // for debug
+    char harqStatus = '.';
+
 };
 
 struct McsEntry {
@@ -19,7 +28,7 @@ struct McsEntry {
 
 double generateRandomCQI()
 {
-    return 15.0 * std::rand() / RAND_MAX; // generate number between 0 - 15
+    return 15.0 * std::rand() / double(RAND_MAX); // generate number between 0 - 15
 }
 
 void updateCQI(User& u)
@@ -108,6 +117,72 @@ void schedulePF(const std::vector<User>& users, std::vector<int>& rbOwner,
     }
 }
 
+double computeBaseBLER(double cqi) {
+    // BLER decreases with CQI, better channel -> lower BLER
+    return std::exp(-0.35 * cqi);
+}
+
+bool decideHarqACK(double cqi, int txCount) {
+    double base = computeBaseBLER(cqi);
+    // BLER decreases with number of transmissions
+    double eff = std::pow(base, txCount);
+    // For now draw the outcome using uniform dist.
+    double u = std::rand() / double(RAND_MAX);
+    
+    return (u >= eff); // true = ACK otherwise NACK
+}
+
+int runHarqForUser(User& user, int capBits, double userCQI) {
+    // No transmission at all this TTI
+    if (capBits <= 0) {
+        // If HARQ is active, TB just waits; if not, idle
+        user.harqStatus = user.harqActive ? 'N' : '.';
+        return 0;
+    }
+    
+    if (user.harqActive) {
+        int oldTb = user.harqBits;
+        bool ack = decideHarqACK(userCQI, user.harqTxCount++);
+
+        if (ack) {
+            user.harqStatus = 'A';
+            user.buffer -= oldTb;
+            user.harqBits = 0;
+            user.harqActive = false;
+            return oldTb;
+        }
+        else {
+            user.harqStatus = 'N';
+            return 0;
+        }
+    }
+    else {
+        if (user.buffer <= 0 || capBits <= 0) {
+            user.harqStatus = '.';
+            return 0;
+        }
+
+        int tb = std::min(user.buffer, capBits);
+        user.harqActive = true;
+        user.harqBits = tb;
+        user.harqTxCount = 1;
+
+        bool ack = decideHarqACK(userCQI, 1);
+
+        if (ack) {
+            user.harqStatus = 'A';
+            user.buffer -= tb;
+            user.harqBits = 0;
+            user.harqActive = false;
+            return tb;
+        }
+        else {
+            user.harqStatus = 'N';
+            return 0;
+        }
+    }
+}
+
 int main()
 {
     std::cout << "rSS_ | Build 0.5\n";
@@ -188,7 +263,10 @@ int main()
         // Update buffers
         for (std::size_t i = 0; i < users.size(); ++i) {
             int bits = static_cast<int>(thrPerUser[i]);
-            users[i].buffer = std::max(0, users[i].buffer - bits);
+            // users[i].buffer = std::max(0, users[i].buffer - bits); OLD
+            int delivered = runHarqForUser(users[i], bits, users[i].cqi);
+            thrPerUser[i] = delivered;
+
         };
 
         // clean out print
@@ -198,12 +276,14 @@ int main()
                 << "  CQI=" << u.cqi
                 << "  bitsPerRB=" << bitsPerRbPerUser[i]
                 << "  THR=" << thrPerUser[i]
-                << "  BUF=" << u.buffer << "\n";
+                << "  BUF=" << u.buffer
+                << "  HARQ=" << u.harqStatus << "\n";
+
         }
 
         // Add new traffic arrivals
         for (auto& u : users) {
-            u.buffer += static_cast<int>(5000.0 * std::rand() / RAND_MAX);
+            u.buffer += static_cast<int>(5000.0 * std::rand() / double(RAND_MAX));
         }
         
     }
