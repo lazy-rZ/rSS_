@@ -6,17 +6,47 @@
 #include <cmath>
 #include "common.h"
 
+void updatePosition(User& u, double dt_sec) {
+    u.x += u.vx * dt_sec;
+    u.y += u.vy * dt_sec;
+}
 
 int main()
 {
-    std::cout << "rSS_ | Build 0.9\n";
+    std::cout << "rSS_ | Build 0.99\n";
     
     // Initilize users
     std::vector<User> users;
 
-    users.push_back({ 0, 0.0, 10000, 0.0, 0.0 });
-    users.push_back({ 1, 0.0, 18000, 0.0, 0.0 });
-    users.push_back({ 2, 0.0, 9000, 0.0, 0.0 });
+    users.push_back({
+        0,           // id
+        20.0, 0.0,   // x, y  in meters
+        0.0, 0.0,    // vx, vy in meters per second
+        0.0,         // cqi 
+        10000,       // buffer
+        0.0,         // bitsPerRb
+        0.0          // thr
+    });
+
+    users.push_back({
+        1,
+        120.0, -50.0,
+        -4.0, 3.5,    
+        0.0,
+        18000,
+        0.0,
+        0.0
+    });
+
+    users.push_back({
+        2,
+        -150.0, 80.0,
+        4.5, -4.5,
+        0.0,
+        9000,
+        0.0,
+        0.0
+    });
 
     // MCS table 
     std::vector<McsEntry> mcsTable = {
@@ -49,7 +79,9 @@ int main()
         std::cout << "TTI: " << tti << "\n";
 
         for (auto& u : users) { 
-            updateCQI(u); // update each users CQI using a random number generator
+            //updateCQI(u); // update each users CQI using a random number generator
+            updatePosition(u, 0.001); // 1 ms
+            updateCQI_physical(u); // updates each users CQI using physical model based on mobility
         };
 
         // call scheduler

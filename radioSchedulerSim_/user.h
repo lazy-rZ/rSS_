@@ -2,6 +2,9 @@
 
 struct User {
     int id;
+    // we want to model the UE so we add mobility
+    double x, y;
+    double vx, vy;
     double cqi;
     int buffer;
     double bitsPerRb;

@@ -3,7 +3,12 @@
 #include <vector>
 #include <cmath>
 #include "mcs.h"
+#include <algorithm>  
 
+// Base station 
+static const double BS_X = 0.0;
+static const double BS_Y = 0.0;
+static const double Ptx_dB = 46.0;
 
 double generateRandomCQI()
 {
@@ -38,4 +43,39 @@ bool decideHarqACK(double cqi, int txCount) {
     double u = std::rand() / double(RAND_MAX);
 
     return (u >= eff); // true = ACK otherwise NACK
+}
+
+double computeDistance(const User& u) {
+    double dx = u.x - BS_X;
+    double dy = u.y - BS_Y;
+    return std::sqrt(dx * dx + dy * dy);
+}
+
+double computePathloss_dB(double d) {
+    // simple pathloss model defined as:
+    // PL(d) = PL0 + 10 * n * log_10(d) 
+    // where PL_0 = loss at 1 m, for example 30dB
+    // n = pathloss exponent, we pick 3 which represent urban space
+    return 30.0 + 30.0 * std::log10(d);
+}
+
+double computeSINR_dB(const User& u) {
+    // get distance from BS to user -> compute loss -> compute recived power 
+    // -> (thermal noise) -> compute SINR
+    double distance = computeDistance(u);
+    double pathLoss_dB = computePathloss_dB(distance);
+    double Prx_dB = Ptx_dB - pathLoss_dB;
+    double noise_dB = -101.0;
+    return Prx_dB - noise_dB;
+}
+
+double sinrToCQI(double sinr_dB) {
+    // simple linear map
+    double cqi = (sinr_dB - 30.0) / 4.0; // change sensitivity 
+    return std::clamp(cqi, 0.0, 15.0);
+}
+
+void updateCQI_physical(User& u) {
+    double sinr_dB = computeSINR_dB(u);
+    u.cqi = sinrToCQI(sinr_dB);
 }
