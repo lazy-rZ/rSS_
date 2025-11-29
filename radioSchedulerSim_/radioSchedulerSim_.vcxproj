@@ -123,7 +123,18 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="channel.cpp" />
+    <ClCompile Include="harq.cpp" />
     <ClCompile Include="radioSchedulerSim_.cpp" />
+    <ClCompile Include="schedulers.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="channel.h" />
+    <ClInclude Include="common.h" />
+    <ClInclude Include="harq.h" />
+    <ClInclude Include="mcs.h" />
+    <ClInclude Include="schedulers.h" />
+    <ClInclude Include="user.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
