@@ -24,6 +24,9 @@ ARM/
 
 # Visual C++ intermediate files
 *.idb
+*.ipch/
+*.VC.db
+*.VC.VC.opendb
 *.pdb
 *.ilk
 *.ipch
