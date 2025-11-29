@@ -1,8 +1,7 @@
 #include <vector>
 #include "user.h"
 
-void scheduleRoundRobin(const std::vector<User>& users, std::vector<int>& rbOwner)
-{
+void scheduleRoundRobin(const std::vector<User>& users, std::vector<int>& rbOwner) {
     int numUsers = static_cast<int>(users.size());
 
     for (int rb = 0; rb < static_cast<int>(rbOwner.size()); ++rb) {
