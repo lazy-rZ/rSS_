@@ -6,6 +6,24 @@
 #include <cmath>
 #include "common.h"
 
+double computeJainsFairness(const std::vector<double>& ueAvgThroughput)
+{
+    double sum = 0.0;
+    double sumSq = 0.0;
+
+    for (double x : ueAvgThroughput) {
+        sum += x;
+        sumSq += x * x;
+    }
+
+    if (sumSq == 0.0 || ueAvgThroughput.empty()) {
+        return 0.0;
+    }
+
+    double N = static_cast<double>(ueAvgThroughput.size());
+    return (sum * sum) / (N * sumSq);
+}
+
 void updatePosition(User& u, double dt_sec) {
     u.x += u.vx * dt_sec;
     u.y += u.vy * dt_sec;
@@ -15,7 +33,6 @@ int main()
 {
     std::cout << "rSS_ | Build 0.99\n";
     
-    // Initilize users
     std::vector<User> users;
 
     users.push_back({
@@ -48,7 +65,7 @@ int main()
         0.0
     });
 
-    // MCS table 
+    // MCS table that maps CQI to bits per Rb
     std::vector<McsEntry> mcsTable = {
         { 0.0,  50  },   // QPSK low
         { 4.0,  80  },   // QPSK high
@@ -69,12 +86,14 @@ int main()
 
     // Set seed to current time for rand
     std::srand(static_cast<unsigned>(std::time(nullptr)));
+    
+    // Metric to keep track of total delivered bits per UE
+    std::vector<double> ueDeliveredBits(users.size(), 0);
 
-    // For verifying PF is balancing
-    std::vector<double> totalThr(users.size(), 0.0);
+    const int NUM_TTI = 100;
 
     // main loop
-    for (int tti = 0; tti < 100; ++tti) {
+    for (int tti = 0; tti < NUM_TTI; ++tti) {
         
         std::cout << "TTI: " << tti << "\n";
 
@@ -104,9 +123,8 @@ int main()
             thrPerUser[uIndex] += bitsPerRbPerUser[uIndex];
         };
 
-        // For debuggin
         for (std::size_t i = 0; i < users.size(); ++i) {
-            totalThr[i] += thrPerUser[i];
+            ueDeliveredBits[i] += thrPerUser[i];
         }
 
         // for PF scheduling keep exponential average for throughput
@@ -144,12 +162,31 @@ int main()
         
     }
 
-    // The totals per UE should be in the same ballpark
-    std::cout << "\nTotal throughput over all TTIs:\n";
+    // Metric for average thrPut for each UE, def. by TotaltDel.Bits/(SimTime in seconds)
+    const double TTI_SEC = 0.001; // 1 ms
+    double simTimeSec = NUM_TTI * TTI_SEC;
+
+    std::vector<double> ueAvgThroughput(users.size(), 0.0);
+
     for (std::size_t i = 0; i < users.size(); ++i) {
-        std::cout << "  UE" << users[i].id
-            << " totalThr = " << totalThr[i] << " bits\n";
+        ueAvgThroughput[i] = ueDeliveredBits[i] / simTimeSec;
     }
+
+    double jainFairness = computeJainsFairness(ueAvgThroughput);
+
+
+    // Print the metrics 
+    std::cout << "\nSIMULATION RESULTS\n";
+    std::cout << "Simulation time: " << simTimeSec << " s\n";
+    std::cout << "Number of UEs: " << ueDeliveredBits.size() << "\n";
+
+    for (std::size_t i = 0; i < ueDeliveredBits.size(); ++i) {
+        std::cout << "UE" << i << ":\n";
+        std::cout << "  Total delivered bits : " << ueDeliveredBits[i] << "\n";
+        std::cout << "  Avg throughput (bps) : " << ueAvgThroughput[i] << "\n";
+    }
+
+    std::cout << "\nJain's Fairness Index = " << jainFairness << "\n";
 
     return 0;
 }
